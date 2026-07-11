@@ -1,0 +1,16 @@
+{
+  "name": "roko",
+  "version": "1.0.0",
+  "description": "Roko - বিনামূল্যে ব্যক্তিগত AI সহকারী (Gemini free tier + free web search, বিশ্বের আইন, বিজ্ঞান, গণিত ও ইতিহাসে দক্ষ)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cheerio": "^1.0.0"
+  }
+}
