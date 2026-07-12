@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Roko</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#FFFFFF; --paper-line:#E7ECF5; --margin-red:#B0393A;
+    --ink:#2A3547; --ink-soft:#4C5B73; --stamp-green:#2F6B4F;
+    --stamp-green-soft:#E6EFE9; --muted:#948E7C;
+    --tab-chat:#C9705F; --tab-task:#3D6B4F; --tab-note:#3E5C8A; --tab-file:#8B5FBF;
+    --shadow: 0 2px 10px rgba(42,53,71,0.10);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0;font-family:'Hind Siliguri',sans-serif;color:var(--ink);background:var(--paper);overflow:hidden;}
+  #app{position:relative;height:100vh;display:flex;flex-direction:column;background:var(--paper);}
+  header{position:relative;z-index:2;padding:20px 20px 14px 20px;flex-shrink:0;overflow:visible;}
+  header h1{position:relative;font-family:'Baloo Da 2';font-size:26px;font-weight:800;margin:0;letter-spacing:0.5px;display:inline-block;}
+  header p{margin:4px 0 0;font-size:13px;color:var(--muted);}
+  main{position:relative;z-index:2;flex:1;overflow-y:auto;padding:6px 20px 190px 20px;}
+  .view{display:none;} .view.active{display:block;}
+  .empty{margin-top:40px;color:var(--muted);font-size:14.5px;text-align:center;line-height:1.7;}
+  .empty b{display:block;font-family:'Baloo Da 2';font-size:17px;color:var(--ink-soft);margin-bottom:4px;}
+
+  /* ---------- বিড়াল এনিমেশন (ডান দিক থেকে হেঁটে আসবে) ---------- */
+  .catbox{position:absolute;left:0;top:8px;width:100%;height:56px;pointer-events:none;z-index:6;overflow:visible;}
+  .cat{position:absolute;width:64px;height:44px;left:0;top:0;transform:translateX(100vw);
+       animation:catWalk 2.4s cubic-bezier(.4,0,.2,1) forwards;}
+  .cat .tail{position:absolute;width:24px;height:7px;background:var(--ink);border-radius:8px;right:-16px;top:10px;
+             transform-origin:left center;animation:tailWag .5s ease-in-out infinite alternate;}
+  .cat .body{position:absolute;width:44px;height:20px;background:var(--ink);left:10px;top:12px;
+             border-radius:50% 60% 55% 45%/60% 60% 40% 40%;transition:all .5s ease;}
+  .cat .head{position:absolute;width:20px;height:18px;background:var(--ink);left:0;top:6px;
+             border-radius:50% 50% 45% 45%;transition:all .5s ease;}
+  .cat .ear{position:absolute;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;
+            border-bottom:8px solid var(--ink);top:-4px;transition:all .5s ease;}
+  .cat .ear.l{left:1px;transform:rotate(-15deg);} .cat .ear.r{left:11px;transform:rotate(15deg);}
+  .cat .eye{position:absolute;width:3px;height:3px;background:#fff;border-radius:50%;top:8px;transition:all .5s ease;}
+  .cat .eye.le{left:2px;} .cat .eye.re{left:11px;}
+  .cat .mouth{position:absolute;width:9px;height:5px;left:5px;top:12px;border:2px solid transparent;
+              border-bottom-color:#fff;border-radius:0 0 50% 50%;transition:all .5s ease;}
+  .cat .leg{position:absolute;width:4px;height:14px;background:var(--ink);bottom:2px;border-radius:0 0 2px 2px;
+            transform-origin:top center;transition:opacity .3s ease;}
+  .cat .leg.l1{left:14px;} .cat .leg.l2{left:22px;} .cat .leg.l3{left:34px;} .cat .leg.l4{left:42px;}
+  .cat.walking .leg.l1,.cat.walking .leg.l3{animation:legSwingA .4s ease-in-out infinite;}
+  .cat.walking .leg.l2,.cat.walking .leg.l4{animation:legSwingB .4s ease-in-out infinite;}
+  @keyframes legSwingA{0%,100%{transform:rotate(22deg);}50%{transform:rotate(-22deg);}}
+  @keyframes legSwingB{0%,100%{transform:rotate(-22deg);}50%{transform:rotate(22deg);}}
+  @keyframes tailWag{0%{transform:rotate(0deg);}100%{transform:rotate(16deg);}}
+  @keyframes catWalk{
+    0%{transform:translateX(100vw);}
+    80%{transform:translateX(46px);}
+    100%{transform:translateX(50px);}
+  }
+  /* শোয়ার ভঙ্গি — Roko লেখার উপরে গা এলিয়ে, এক পা ও লেজ একসাথে দুলছে, মুখে হাসি */
+  .cat.lying .tail{left:20px;top:26px;width:26px;height:6px;right:auto;border-radius:6px;
+                   transform-origin:left center;animation:tailSwingLying 2.3s ease-in-out infinite;}
+  .cat.lying .body{width:56px;height:15px;border-radius:10px;left:2px;top:18px;transform:rotate(-4deg);
+                   animation:catBreathe 2.6s ease-in-out infinite;}
+  .cat.lying .head{left:-6px;top:13px;transform:rotate(-14deg);}
+  .cat.lying .ear.l{top:6px;} .cat.lying .ear.r{top:6px;}
+  .cat.lying .eye.le{left:-4px;top:15px;} .cat.lying .eye.re{left:5px;top:15px;}
+  .cat.lying .mouth{left:-1px;top:19px;}
+  .cat.lying .leg.l1,.cat.lying .leg.l2,.cat.lying .leg.l3{opacity:0;}
+  .cat.lying .leg.l4{left:44px;top:20px;width:5px;height:26px;opacity:1;
+                     animation:legDangle 2.3s ease-in-out infinite;}
+  @keyframes legDangle{0%,100%{transform:rotate(8deg);}50%{transform:rotate(-8deg);}}
+  @keyframes tailSwingLying{0%,100%{transform:rotate(10deg);}50%{transform:rotate(-10deg);}}
+  @keyframes catBreathe{0%,100%{transform:rotate(-4deg) scaleY(1);}50%{transform:rotate(-4deg) scaleY(1.05);}}
+
+  /* ---------- মাঝেমধ্যে ফুটবল খেলা ---------- */
+  .cat .ball{position:absolute;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid var(--ink);
+        left:52px;top:42px;opacity:0;transition:opacity .2s ease;}
+  .cat.playing .ball{opacity:1;animation:ballBounce .55s ease-in-out infinite;}
+  .cat.playing .leg.l4{animation:legKick .45s ease-in-out infinite;}
+  .cat.playing .tail{animation:tailWagFast .3s ease-in-out infinite alternate;}
+  .cat.playing .mouth{left:0px;top:18px;width:11px;height:6px;}
+  @keyframes ballBounce{0%,100%{transform:translate(0,0);}50%{transform:translate(-4px,-9px);}}
+  @keyframes legKick{0%,100%{transform:rotate(8deg);}50%{transform:rotate(55deg);}}
+  @keyframes tailWagFast{0%{transform:rotate(-16deg);}100%{transform:rotate(16deg);}}
+
+  /* ---------- মাঝেমধ্যে হাত নাড়িয়ে হাই দেওয়া ---------- */
+  .cat .paw{position:absolute;width:5px;height:15px;background:var(--ink);border-radius:3px 3px 4px 4px;
+       left:-9px;top:9px;transform-origin:bottom center;opacity:0;transition:opacity .2s ease;}
+  .cat.waving .paw{opacity:1;animation:pawWave .45s ease-in-out infinite;}
+  .cat.waving .mouth{left:0px;top:18px;width:11px;height:6px;}
+  @keyframes pawWave{0%,100%{transform:rotate(-25deg);}50%{transform:rotate(25deg);}}
+
+  .msg{margin:14px 0;display:flex;} .msg.user{justify-content:flex-end;}
+  .bubble{max-width:82%;padding:10px 14px;border-radius:4px;font-size:15px;line-height:1.6;white-space:pre-wrap;}
+  .msg.user .bubble{background:var(--ink);color:var(--paper);border-radius:10px 10px 2px 10px;}
+  .msg.assistant .bubble{background:transparent;border-left:2px solid var(--tab-chat);padding-left:12px;border-radius:0;}
+  .msg.assistant .bubble.thinking{color:var(--muted);font-style:italic;}
+  .searchtag{display:inline-block;font-size:11px;color:var(--tab-note);border:1px solid var(--tab-note);border-radius:10px;padding:1px 8px;margin-bottom:6px;font-family:'Baloo Da 2';}
+  .bubble img.chatimg{display:block;max-width:100%;border-radius:8px;margin-top:6px;margin-bottom:4px;}
+  .bubble .imgcap{font-size:12px;color:var(--muted);margin-top:2px;}
+  .bubble .filesave{display:inline-block;margin-top:6px;font-size:11.5px;color:var(--tab-file);border:1px solid var(--tab-file);border-radius:10px;padding:2px 9px;cursor:pointer;background:#fff;font-family:'Baloo Da 2';}
+  .copybtn{display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:12px;border:none;background:none;color:var(--tab-chat);cursor:pointer;padding:0;font-family:'Hind Siliguri';}
+
+  #chatDock{position:fixed;left:0;right:0;bottom:64px;z-index:3;padding:8px 20px 8px 20px;background:linear-gradient(to top,var(--paper) 78%,transparent);}
+  .chatinput{position:relative;display:flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--paper-line);border-radius:22px;padding:6px 6px 6px 6px;box-shadow:var(--shadow);}
+  .chatinput input{flex:1;border:none;outline:none;font-family:'Hind Siliguri';font-size:15px;background:transparent;color:var(--ink);padding-left:10px;}
+  #plusBtn{border:none;background:var(--paper-line);color:var(--ink-soft);width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0;}
+  #sendBtn{border:none;background:var(--tab-chat);color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;}
+  #sendBtn:disabled{opacity:0.5;}
+  .plusmenu{display:none;position:absolute;bottom:48px;left:0;background:#fff;border:1px solid var(--paper-line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;min-width:190px;}
+  .plusmenu.open{display:block;}
+  .plusmenu button{display:flex;align-items:center;gap:8px;width:100%;border:none;background:none;padding:11px 14px;font-family:'Hind Siliguri';font-size:14px;color:var(--ink);text-align:left;cursor:pointer;}
+  .plusmenu button:hover{background:var(--paper-line);}
+
+  .addbar{display:flex;gap:8px;margin:10px 0 18px;}
+  .addbar input[type=text]{flex:1;padding:10px 12px;border:1px solid var(--paper-line);border-radius:8px;font-family:'Hind Siliguri';font-size:14.5px;background:#fff;}
+  .addbar input[type=date]{padding:10px 8px;border:1px solid var(--paper-line);border-radius:8px;font-family:'Hind Siliguri';font-size:13px;background:#fff;color:var(--ink-soft);width:120px;}
+  .addbar button{background:var(--tab-task);color:#fff;border:none;padding:0 16px;border-radius:8px;font-family:'Baloo Da 2';font-size:15px;cursor:pointer;}
+  .task{position:relative;display:flex;align-items:flex-start;gap:10px;padding:10px 8px;border-bottom:1px dashed var(--paper-line);}
+  .task .check{width:22px;height:22px;border-radius:50%;border:2px solid var(--tab-task);flex-shrink:0;margin-top:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;background:#fff;}
+  .task.done .check{background:var(--tab-task);} .task.done .check::after{content:"✓";color:#fff;font-size:13px;}
+  .task .body{flex:1;min-width:0;} .task .text{font-size:15px;line-height:1.5;word-break:break-word;}
+  .task.done .text{color:var(--muted);} .task .due{font-size:12px;color:var(--muted);margin-top:2px;}
+  .task .del{border:none;background:none;color:var(--muted);font-size:16px;cursor:pointer;padding:2px 6px;flex-shrink:0;}
+  .stamp{position:absolute;right:10px;top:2px;font-family:'Baloo Da 2';font-weight:800;font-size:13px;color:var(--stamp-green);
+    border:2.5px solid var(--stamp-green);border-radius:50%;padding:4px 7px;transform:rotate(-14deg);opacity:0;pointer-events:none;background:var(--stamp-green-soft);}
+  .task.done .stamp{opacity:0.9;animation:stampin 0.28s ease-out;}
+  @keyframes stampin{0%{transform:rotate(-14deg) scale(2);opacity:0;}70%{opacity:1;}100%{transform:rotate(-14deg) scale(1);opacity:0.9;}}
+
+  .sectionbar{display:flex;justify-content:flex-end;margin:8px 0;}
+  .sectionbar button{background:#fff;color:var(--tab-file);border:1px solid var(--tab-file);padding:6px 12px;border-radius:8px;font-family:'Baloo Da 2';font-size:13px;cursor:pointer;}
+
+  .addnote{margin:10px 0 18px;}
+  .addnote input,.addnote textarea{width:100%;border:1px solid var(--paper-line);border-radius:8px;padding:10px 12px;font-family:'Hind Siliguri';background:#fff;margin-bottom:8px;resize:vertical;}
+  .addnote input{font-size:15px;font-weight:600;} .addnote textarea{font-size:14.5px;min-height:70px;}
+  .addnote button{background:var(--tab-note);color:#fff;border:none;padding:9px 18px;border-radius:8px;font-family:'Baloo Da 2';font-size:15px;cursor:pointer;}
+  .note{background:#fff;border-left:3px solid var(--tab-note);border-radius:2px 8px 8px 2px;padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow);}
+  .note h3{margin:0 0 6px;font-family:'Baloo Da 2';font-size:16px;} .note p{margin:0;font-size:14px;line-height:1.6;color:var(--ink-soft);white-space:pre-wrap;}
+  .note .meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+  .note .meta span{font-size:11.5px;color:var(--muted);} .note .del{border:none;background:none;color:var(--muted);font-size:14px;cursor:pointer;}
+
+  .filegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .filecard{background:#fff;border:1px solid var(--paper-line);border-radius:10px;overflow:hidden;box-shadow:var(--shadow);}
+  .filecard .thumb{width:100%;height:110px;object-fit:cover;display:block;background:var(--paper-line);}
+  .filecard .pdfthumb{width:100%;height:110px;display:flex;align-items:center;justify-content:center;font-size:34px;background:#F4EFFA;color:var(--tab-file);}
+  .filecard .fmeta{padding:8px 10px;}
+  .filecard .fname{font-size:12.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .filecard .frow{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
+  .filecard .fdate{font-size:11px;color:var(--muted);}
+  .filecard a, .filecard button.fdel{font-size:11.5px;border:none;background:none;color:var(--tab-file);cursor:pointer;text-decoration:none;}
+
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:4;display:flex;background:#fff;box-shadow:0 -2px 10px rgba(42,53,71,0.12);}
+  nav button{flex:1;border:none;background:transparent;padding:11px 4px 9px;font-family:'Baloo Da 2';font-size:12.5px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;}
+  nav button .dot{width:6px;height:6px;border-radius:50%;background:transparent;}
+  nav button.active{color:var(--ink);} nav button.active .dot{background:currentColor;}
+  nav button[data-tab="chat"].active{color:var(--tab-chat);} nav button[data-tab="tasks"].active{color:var(--tab-task);} nav button[data-tab="notes"].active{color:var(--tab-note);} nav button[data-tab="files"].active{color:var(--tab-file);}
+  nav button.active::before{content:"";position:absolute;top:0;left:20%;right:20%;height:3px;border-radius:0 0 3px 3px;background:currentColor;}
+  .banner{margin:0 0 12px;padding:10px 12px;background:#FFF3E9;border:1px solid #E8C9A8;border-radius:8px;font-size:12.5px;color:#7A4B1F;display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="catbox" id="catbox">
+      <div class="cat walking" id="cat">
+        <div class="tail"></div>
+        <div class="body"></div>
+        <div class="head"></div>
+        <div class="ear l"></div>
+        <div class="ear r"></div>
+        <div class="eye le"></div>
+        <div class="eye re"></div>
+        <div class="mouth"></div>
+        <div class="leg l1"></div>
+        <div class="leg l2"></div>
+        <div class="leg l3"></div>
+        <div class="leg l4"></div>
+        <div class="ball"></div>
+        <div class="paw"></div>
+      </div>
+    </div>
+    <h1>Roko</h1>
+    <p>তোমার ব্যক্তিগত সহকারী — বিশ্বের আইন, বিজ্ঞান, গণিত, ইতিহাস ও গবেষণায় দক্ষ</p>
+  </header>
+
+  <main>
+    <section class="view active" id="view-chat">
+      <div class="banner" id="apiBanner">সার্ভার এখনো AI-র সাথে যুক্ত হয়নি। README অনুযায়ী GEMINI_API_KEY সেট করো।</div>
+      <div id="chatLog"></div>
+      <div class="empty" id="chatEmpty"><b>কিছু জিজ্ঞেস করো</b>আইন, বিজ্ঞান, গণিত, ইতিহাস বা যেকোনো বিষয়ে প্রশ্ন করো, অথবা + চেপে ছবি বানাও।</div>
+    </section>
+
+    <section class="view" id="view-tasks">
+      <div class="addbar">
+        <input type="text" id="taskInput" placeholder="নতুন কাজ লেখো...">
+        <input type="date" id="taskDate">
+        <button id="addTaskBtn">যোগ</button>
+      </div>
+      <div id="taskList"></div>
+      <div class="empty" id="tasksEmpty"><b>কোনো কাজ নেই</b>উপরে লিখে "যোগ" চাপো।</div>
+    </section>
+
+    <section class="view" id="view-notes">
+      <div class="addnote">
+        <input type="text" id="noteTitle" placeholder="নোটের শিরোনাম">
+        <textarea id="noteBody" placeholder="যা মনে রাখতে চাও..."></textarea>
+        <button id="addNoteBtn">সংরক্ষণ</button>
+      </div>
+      <div class="sectionbar"><button id="exportNotesPdf">📄 সব নোট PDF করো</button></div>
+      <div id="noteList"></div>
+      <div class="empty" id="notesEmpty"><b>কোনো নোট নেই</b>ছোট কোনো তথ্য লিখে রাখো।</div>
+    </section>
+
+    <section class="view" id="view-files">
+      <div class="empty" id="filesEmpty" style="margin-top:20px;"><b>এখনো কোনো ফাইল নেই</b>চ্যাটে ছবি বানালে বা কোনো কিছু PDF করলে সেটা এখানে জমা থাকবে।</div>
+      <div class="filegrid" id="fileGrid"></div>
+    </section>
+  </main>
+
+  <div id="chatDock">
+    <div class="chatinput">
+      <button id="plusBtn">＋</button>
+      <div class="plusmenu" id="plusMenu">
+        <button id="menuGenerate">🎨 ছবি বানাও (লেখা থেকে)</button>
+        <button id="menuChatPdf">📄 এই চ্যাট PDF করো</button>
+      </div>
+      <input type="text" id="chatInput" placeholder="বার্তা লেখো...">
+      <button id="sendBtn">➤</button>
+    </div>
+  </div>
+
+  <nav>
+    <button data-tab="chat" class="active"><span class="dot"></span>চ্যাট</button>
+    <button data-tab="tasks"><span class="dot"></span>কাজ</button>
+    <button data-tab="notes"><span class="dot"></span>নোট</button>
+    <button data-tab="files"><span class="dot"></span>ফাইল</button>
+  </nav>
+</div>
+
+<script>
+let tasks = JSON.parse(localStorage.getItem('roko_tasks') || '[]');
+let notes = JSON.parse(localStorage.getItem('roko_notes') || '[]');
+let chatHistory = JSON.parse(localStorage.getItem('roko_chat') || '[]');
+let files = JSON.parse(localStorage.getItem('roko_files') || '[]');
+
+function saveTasks(){ localStorage.setItem('roko_tasks', JSON.stringify(tasks)); }
+function saveNotes(){ localStorage.setItem('roko_notes', JSON.stringify(notes)); }
+function saveChat(){ localStorage.setItem('roko_chat', JSON.stringify(chatHistory)); }
+function saveFiles(){ localStorage.setItem('roko_files', JSON.stringify(files)); }
+
+// ---------- বিড়াল: হেঁটে এসে Roko লেখার উপর শুয়ে পড়বে, তারপর মাঝেমধ্যে খেলবে ও হাই দেবে ----------
+function startCatAntics(cat){
+  function cycle(){
+    setTimeout(()=>{
+      cat.classList.add('playing');
+      setTimeout(()=>{
+        cat.classList.remove('playing');
+        setTimeout(()=>{
+          cat.classList.add('waving');
+          setTimeout(()=>{
+            cat.classList.remove('waving');
+            cycle();
+          }, 1800);
+        }, 700);
+      }, 2200);
+    }, 6000);
+  }
+  cycle();
+}
+window.addEventListener('load', ()=>{
+  const cat = document.getElementById('cat');
+  setTimeout(()=>{
+    cat.classList.remove('walking');
+    cat.classList.add('lying');
+    startCatAntics(cat);
+  }, 2450);
+});
+
+// ---------- ট্যাব সুইচিং ----------
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+    document.getElementById('chatDock').style.display = btn.dataset.tab==='chat' ? 'block' : 'none';
+    if(btn.dataset.tab==='files') renderFiles();
+  });
+});
+
+function escapeHtml(s){ const d=document.createElement('div'); d.innerText=s; return d.innerHTML; }
+function fmtDate(d){
+  if(!d) return '';
+  const dt=new Date(d+'T00:00:00');
+  const months=['জানু','ফেব্রু','মার্চ','এপ্রি','মে','জুন','জুলা','আগ','সেপ্ট','অক্টো','নভে','ডিসে'];
+  return dt.getDate()+' '+months[dt.getMonth()];
+}
+
+function renderTasks(){
+  const list=document.getElementById('taskList'); const empty=document.getElementById('tasksEmpty');
+  list.innerHTML=''; empty.style.display = tasks.length ? 'none':'block';
+  tasks.slice().sort((a,b)=>a.done-b.done).forEach(t=>{
+    const div=document.createElement('div'); div.className='task'+(t.done?' done':'');
+    div.innerHTML=`<div class="check"></div><div class="body"><div class="text">${escapeHtml(t.text)}</div>${t.due?`<div class="due">${fmtDate(t.due)}</div>`:''}</div><button class="del">×</button><div class="stamp">সম্পন্ন</div>`;
+    div.querySelector('.check').addEventListener('click',()=>{ t.done=!t.done; saveTasks(); renderTasks(); });
+    div.querySelector('.del').addEventListener('click',()=>{ tasks=tasks.filter(x=>x.id!==t.id); saveTasks(); renderTasks(); });
+    list.appendChild(div);
+  });
+}
+document.getElementById('addTaskBtn').addEventListener('click', addTask);
+document.getElementById('taskInput').addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
+function addTask(){
+  const input=document.getElementById('taskInput'); const dateInput=document.getElementById('taskDate');
+  const text=input.value.trim(); if(!text) return;
+  tasks.push({id:Date.now().toString(), text, due:dateInput.value||null, done:false});
+  input.value=''; dateInput.value=''; saveTasks(); renderTasks();
+}
+
+function renderNotes(){
+  const list=document.getElementById('noteList'); const empty=document.getElementById('notesEmpty');
+  list.innerHTML=''; empty.style.display = notes.length ? 'none':'block';
+  notes.slice().reverse().forEach(n=>{
+    const div=document.createElement('div'); div.className='note'; const d=new Date(n.ts);
+    div.innerHTML=`<h3>${escapeHtml(n.title||'শিরোনামহীন')}</h3><p>${escapeHtml(n.body)}</p><div class="meta"><span>${d.toLocaleDateString('bn-BD',{day:'numeric',month:'short'})}</span><button class="del">মুছুন</button></div>`;
+    div.querySelector('.del').addEventListener('click',()=>{ notes=notes.filter(x=>x.id!==n.id); saveNotes(); renderNotes(); });
+    list.appendChild(div);
+  });
+}
+document.getElementById('addNoteBtn').addEventListener('click', ()=>{
+  const title=document.getElementById('noteTitle'); const body=document.getElementById('noteBody');
+  if(!body.value.trim()) return;
+  notes.push({id:Date.now().toString(), title:title.value.trim(), body:body.value.trim(), ts:Date.now()});
+  title.value=''; body.value=''; saveNotes(); renderNotes();
+});
+
+// ---------- ফাইল ট্যাব (ছবি ও PDF সংরক্ষণ) ----------
+function addFileRecord(rec){
+  files.unshift({id:Date.now().toString()+Math.random().toString(36).slice(2), ts:Date.now(), ...rec});
+  saveFiles();
+}
+function renderFiles(){
+  const grid=document.getElementById('fileGrid'); const empty=document.getElementById('filesEmpty');
+  grid.innerHTML=''; empty.style.display = files.length ? 'none':'block';
+  files.forEach(f=>{
+    const card=document.createElement('div'); card.className='filecard';
+    const d=new Date(f.ts).toLocaleDateString('bn-BD',{day:'numeric',month:'short'});
+    const thumb = f.type==='image'
+      ? `<img class="thumb" src="data:${f.mimeType};base64,${f.data}">`
+      : `<div class="pdfthumb">📄</div>`;
+    card.innerHTML = `${thumb}<div class="fmeta"><div class="fname">${escapeHtml(f.name)}</div>
+      <div class="frow"><span class="fdate">${d}</span>
+      <span>
+        <a download="${escapeHtml(f.name)}" href="data:${f.mimeType};base64,${f.data}">নামাও</a>
+        <button class="fdel">মুছুন</button>
+      </span></div></div>`;
+    card.querySelector('.fdel').addEventListener('click', ()=>{ files=files.filter(x=>x.id!==f.id); saveFiles(); renderFiles(); });
+    grid.appendChild(card);
+  });
+}
+document.getElementById('exportNotesPdf').addEventListener('click', async ()=>{
+  if(!notes.length){ alert('কোনো নোট নেই।'); return; }
+  await exportHtmlToPdf(buildNotesHtml(), 'roko-notes-'+Date.now()+'.pdf');
+});
+document.getElementById('menuChatPdf').addEventListener('click', async ()=>{
+  closePlusMenu();
+  if(!chatHistory.length){ alert('চ্যাটে কিছু নেই।'); return; }
+  await exportHtmlToPdf(buildChatHtml(), 'roko-chat-'+Date.now()+'.pdf');
+});
+
+function buildNotesHtml(){
+  const wrap=document.createElement('div');
+  wrap.style.cssText='width:520px;padding:24px;font-family:Hind Siliguri,sans-serif;color:#2A3547;background:#fff;';
+  wrap.innerHTML = `<h1 style="font-family:'Baloo Da 2';font-size:22px;">Roko — নোট সংগ্রহ</h1>` +
+    notes.slice().reverse().map(n=>`<div style="margin-bottom:16px;padding:10px 14px;border-left:3px solid #3E5C8A;">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px;">${escapeHtml(n.title||'শিরোনামহীন')}</div>
+      <div style="font-size:14px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(n.body)}</div></div>`).join('');
+  return wrap;
+}
+function buildChatHtml(){
+  const wrap=document.createElement('div');
+  wrap.style.cssText='width:520px;padding:24px;font-family:Hind Siliguri,sans-serif;color:#2A3547;background:#fff;';
+  wrap.innerHTML = `<h1 style="font-family:'Baloo Da 2';font-size:22px;">Roko — চ্যাট</h1>` +
+    chatHistory.filter(m=>!m.thinking).map(m=>`<div style="margin-bottom:14px;">
+      <div style="font-size:11px;color:#948E7C;margin-bottom:2px;">${m.role==='user'?'তুমি':'Roko'}</div>
+      <div style="font-size:14.5px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(m.content)}</div></div>`).join('');
+  return wrap;
+}
+async function exportHtmlToPdf(node, filename){
+  document.body.appendChild(node);
+  node.style.position='fixed'; node.style.left='-9999px'; node.style.top='0';
+  try{
+    const canvas = await html2canvas(node, {scale:2, backgroundColor:'#ffffff'});
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit:'px', format:[canvas.width/2, canvas.height/2] });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width/2, canvas.height/2);
+    const dataUrl = pdf.output('datauristring');
+    const base64 = dataUrl.split(',')[1];
+    pdf.save(filename);
+    addFileRecord({ type:'pdf', mimeType:'application/pdf', name:filename, data:base64 });
+    renderFiles();
+  } catch(err){
+    console.error(err);
+    alert('PDF তৈরি করতে সমস্যা হয়েছে।');
+  } finally {
+    document.body.removeChild(node);
+  }
+}
+
+// ---------- + মেনু (ছবি বানাও / PDF) ----------
+const plusBtn=document.getElementById('plusBtn'), plusMenu=document.getElementById('plusMenu');
+plusBtn.addEventListener('click', ()=> plusMenu.classList.toggle('open'));
+document.addEventListener('click', e=>{
+  if(!plusMenu.contains(e.target) && e.target!==plusBtn) plusMenu.classList.remove('open');
+});
+function closePlusMenu(){ plusMenu.classList.remove('open'); }
+
+document.getElementById('menuGenerate').addEventListener('click', async ()=>{
+  closePlusMenu();
+  const input=document.getElementById('chatInput');
+  const prompt = input.value.trim();
+  if(!prompt){ alert('আগে কী ছবি বানাতে চাও লিখে দাও, তারপর + চেপে "ছবি বানাও" চাপো।'); return; }
+  input.value='';
+  chatHistory.push({role:'user', content: '🎨 ছবি বানাও: '+prompt}); saveChat(); renderChatLog();
+  chatHistory.push({role:'assistant', content:'ছবি আঁকছি...', thinking:true}); renderChatLog();
+  try{
+    const r = await fetch('/api/generate-image', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt })
+    });
+    const data = await r.json();
+    chatHistory.pop();
+    if(!r.ok || data.error){
+      chatHistory.push({role:'assistant', content: data.error || 'ছবি তৈরি করা যায়নি।'});
+    } else {
+      const fname = 'roko-image-'+Date.now()+'.png';
+      chatHistory.push({role:'assistant', content: data.caption || 'এই যে তোমার ছবি:', image:{mimeType:data.mimeType, data:data.data}, imageName: fname});
+      addFileRecord({ type:'image', mimeType:data.mimeType, data:data.data, name:fname });
+    }
+  }catch(err){
+    console.error(err);
+    chatHistory.pop();
+    chatHistory.push({role:'assistant', content:'দুঃখিত, সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না।'});
+  }
+  saveChat(); renderChatLog();
+});
+
+function renderChatLog(){
+  const log=document.getElementById('chatLog'); const empty=document.getElementById('chatEmpty');
+  log.innerHTML=''; empty.style.display = chatHistory.length ? 'none':'block';
+  chatHistory.forEach(m=>{
+    const div=document.createElement('div'); div.className='msg '+m.role;
+    let imgHtml='';
+    if(m.image){
+      imgHtml = `<img class="chatimg" src="data:${m.image.mimeType};base64,${m.image.data}">`;
+    }
+    div.innerHTML=`<div class="bubble${m.thinking?' thinking':''}">${m.searched?'<span class="searchtag">🔎 ইন্টারনেট খোঁজা হয়েছে</span><br>':''}${escapeHtml(m.content)}${imgHtml}</div>`;
+    if(m.role==='assistant' && !m.thinking){
+      const copyBtn=document.createElement('button');
+      copyBtn.className='copybtn';
+      copyBtn.textContent='📋 কপি';
+      copyBtn.addEventListener('click', ()=>{
+        navigator.clipboard.writeText(m.content).then(()=>{
+          copyBtn.textContent='✓ কপি হয়েছে';
+          setTimeout(()=>{ copyBtn.textContent='📋 কপি'; }, 1500);
+        });
+      });
+      div.querySelector('.bubble').appendChild(copyBtn);
+    }
+    log.appendChild(div);
+  });
+  const main=document.querySelector('main');
+  main.scrollTop = main.scrollHeight;
+  log.lastElementChild?.scrollIntoView({ behavior:'auto', block:'end' });
+}
+
+async function sendMessage(){
+  const input=document.getElementById('chatInput'); const sendBtn=document.getElementById('sendBtn');
+  const text=input.value.trim();
+  if(!text) return;
+
+  chatHistory.push({role:'user', content: text}); input.value=''; saveChat(); renderChatLog();
+  chatHistory.push({role:'assistant', content:'ভাবছি...', thinking:true}); renderChatLog();
+  sendBtn.disabled=true;
+
+  const pendingTasks = tasks.filter(t=>!t.done).map(t=>t.text+(t.due?' ('+fmtDate(t.due)+')':'')).join('; ') || 'কোনো কাজ নেই';
+  const recentNotes = notes.slice(-5).map(n=>(n.title?n.title+': ':'')+n.body).join(' | ') || 'কোনো নোট নেই';
+  const contextStr = `অসম্পন্ন কাজ: ${pendingTasks}. সাম্প্রতিক নোট: ${recentNotes}.`;
+
+  try{
+    const apiMessages = chatHistory.filter(m=>!m.thinking).map(m=>({role:m.role, content:m.content}));
+    const response = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ messages: apiMessages, lastUserMessage: text, context: contextStr })
+    });
+    const data = await response.json();
+    chatHistory.pop();
+    if(!response.ok || data.error){
+      document.getElementById('apiBanner').style.display='block';
+      chatHistory.push({role:'assistant', content: data.error || 'দুঃখিত, উত্তর তৈরি করতে সমস্যা হয়েছে।'});
+    } else {
+      chatHistory.push({role:'assistant', content: data.text, searched: data.searched});
+    }
+  }catch(err){
+    console.error(err);
+    chatHistory.pop();
+    chatHistory.push({role:'assistant', content:'দুঃখিত, সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না।'});
+  }
+  sendBtn.disabled=false; saveChat(); renderChatLog();
+}
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+document.getElementById('chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
+
+renderTasks(); renderNotes(); renderChatLog();
+</script>
+</body>
+</html>
